@@ -4,7 +4,7 @@ from datetime import datetime
 import csv, io, mysql.connector
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"
+app.secret_key = "5fd125c53a4cc13ebb26791429af34e1"
 
 # Temporary in-memory data
 submissions = []
