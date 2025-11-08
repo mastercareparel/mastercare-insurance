@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mastercare Insurance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="top-right">
+    <a href="/submissions" class="btn-view">View Submissions</a>
+  </div>
+
+  <div class="container">
+    <h1>Mastercare Insurance</h1>
+
+    <form action="/add" method="POST">
+      <h2>Claim Details</h2>
+      <div class="grid">
+        <div>
+          <label>Insurance Company</label>
+          <select name="insurance" required>
+            <option value="">Select Company</option>
+            <option>OneAssist D2C</option>
+            <option>Bajaj Allianz</option>
+            <option>Tata AIG</option>
+          </select>
+        </div>
+        <div>
+          <label>Case ID</label>
+          <input type="text" name="caseId" placeholder="Enter Case ID" required>
+        </div>
+
+        <div>
+          <label>Customer Name</label>
+          <input type="text" name="customer" placeholder="Enter customer name" required>
+        </div>
+        <div>
+          <label>Model</label>
+          <input type="text" name="model" placeholder="Enter model" required>
+        </div>
+
+        <div>
+          <label>IMEI Number (15 digits)</label>
+          <input type="text" name="imei" placeholder="Enter IMEI" maxlength="15" required>
+        </div>
+        <div>
+          <label>Estimate Value (₹)</label>
+          <input type="number" name="estimate" placeholder="Enter estimate value" required>
+        </div>
+
+        <div>
+          <label>Repair Done</label>
+          <select name="repair" required>
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+        <div>
+          <label>Invoice Repair</label>
+          <select name="invoice" required>
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+      </div>
+
+      <h2>Payment Details</h2>
+      <div class="grid">
+        <div>
+          <label>Payment Details</label>
+          <input type="text" name="paymentDetails" placeholder="Enter payment details">
+        </div>
+        <div>
+          <label>Payment Value (₹)</label>
+          <input type="number" name="paymentValue" placeholder="Enter payment value">
+        </div>
+        <div>
+          <label>UTR</label>
+          <input type="text" name="utr" placeholder="Enter UTR">
+        </div>
+        <div>
+          <label>Payment Date</label>
+          <input type="date" name="paymentDate" placeholder="dd-mm-yyyy">
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit">Submit</button>
+    </form>
+  </div>
+</body>
+</html>

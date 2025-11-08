@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Submissions - Mastercare Insurance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* --- Responsive Table Fix --- */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+
+    .sub-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1100px; /* agar columns zyada hai to scroll aaye */
+    }
+
+    .sub-table th, .sub-table td {
+      text-align: center;
+      padding: 10px 8px;
+      border-bottom: 1px solid #ddd;
+      white-space: nowrap;
+    }
+
+    .sub-table thead {
+      background-color: #f5f6fa;
+      font-weight: bold;
+    }
+
+    .sub-table tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .sub-table tr:hover {
+      background-color: #f1f1f1;
+    }
+
+    .btn.small {
+      padding: 4px 8px;
+      font-size: 13px;
+      border-radius: 5px;
+      text-decoration: none;
+      color: #fff;
+    }
+
+    .btn.red {
+      background-color: #dc3545;
+    }
+
+    .btn.gray {
+      background-color: #6c757d;
+    }
+
+    .btn.red:hover {
+      background-color: #b52a37;
+    }
+
+    .btn.gray:hover {
+      background-color: #5a6268;
+    }
+
+    .total {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: left;
+    }
+
+    @media (max-width: 768px) {
+      .sub-table th, .sub-table td {
+        font-size: 12px;
+        padding: 6px;
+      }
+      .btn.small {
+        font-size: 12px;
+        padding: 3px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sub-container">
+    <div class="sub-header">
+      <a href="/" class="back-btn">← Back to Home</a>
+      <h1>Submissions</h1>
+      <div class="actions">
+        <form method="get" action="/submissions" class="search-form">
+          <input 
+            type="text" 
+            name="q" 
+            placeholder="Search by Case ID / IMEI / Name"
+            value="{{ search_query or '' }}"
+          />
+          <button type="submit" class="btn blue">Search</button>
+        </form>
+        <a href="/submissions" class="btn">Refresh</a>
+        <a href="{{ url_for('export_csv') }}" class="btn">Export CSV</a>
+      </div>
+    </div>
+
+    <!-- ✅ Wrap table inside scrollable container -->
+    <div class="table-container">
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Created</th>
+            <th>Insurance</th>
+            <th>Case ID</th>
+            <th>Customer</th>
+            <th>Model</th>
+            <th>IMEI</th>
+            <th>Estimate</th>
+            <th>Repair</th>
+            <th>Invoice</th>
+            <th>paymentDetails</th>
+            <th>Payment Value</th>
+            <th>Payment Date</th>
+            <th>UTR</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if submissions %}
+            {% for s in submissions %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ s.get('created', '—') }}</td>
+              <td>{{ s.insurance }}</td>
+              <td>{{ s.caseId }}</td>
+              <td>{{ s.customer }}</td>
+              <td>{{ s.model }}</td>
+              <td>{{ s.imei }}</td>
+              <td>{{ s.estimate }}</td>
+              <td>{{ s.repair }}</td>
+              <td>{{ s.invoice }}</td>
+              <td>{{ s.paymentDetails }}</td>
+              <td>{{ s.paymentValue }}</td>
+              <td>{{ s.paymentDate }}</td>
+              <td>{{ s.utr }}</td>
+              <td>
+                <a href="/edit/{{ loop.index0 }}" class="btn small gray">Edit</a>
+                <a href="/delete/{{ loop.index0 }}" class="btn small red">Delete</a>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="15">No submissions yet</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="total">Total: {{ submissions|length }}</p>
+  </div>
+</body>
+</html>

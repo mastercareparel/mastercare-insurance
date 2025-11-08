@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Submission</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="form-container">
+    <h1>Edit Submission #{{ index + 1 }}</h1>
+
+    <form method="POST">
+      <h2>Claim Details</h2>
+      <div class="form-grid">
+        <div class="form-col">
+          <label>Insurance Company</label>
+          <select name="insurance" required>
+            <option value="oneassist-brand" {% if submission.insurance == "oneassist-brand" %}selected{% endif %}>oneassist-brand</option>
+            <option value="Oneassist D2C" {% if submission.insurance == "Oneassist D2C" %}selected{% endif %}>Oneassist D2C</option>
+            <option value="techguard" {% if submission.insurance == "techguard" %}selected{% endif %}>Techguard</option>
+            <option value="zopper" {% if submission.insurance == "zopper" %}selected{% endif %}>Zopper</option>
+            <option value="icici" {% if submission.insurance == "icici" %}selected{% endif %}>ICICI</option>
+            <option value="acko" {% if submission.insurance == "acko" %}selected{% endif %}>ACKO</option>
+            <option value="Assurant" {% if submission.insurance == "Assurant" %}selected{% endif %}>Assurant</option>
+          </select>
+
+          <label>Customer Name</label>
+          <input type="text" name="customer" value="{{ submission.customer }}" required>
+
+          <label>IMEI Number (15 digits)</label>
+          <input type="text" name="imei" value="{{ submission.imei }}" maxlength="15">
+
+          <label>Repair Done</label>
+          <select name="repair">
+            <option value="Yes" {% if submission.repair == "Yes" %}selected{% endif %}>Yes</option>
+            <option value="No" {% if submission.repair == "No" %}selected{% endif %}>No</option>
+          </select>
+        </div>
+
+        <div class="form-col">
+          <label>Case ID</label>
+          <input type="text" name="caseId" value="{{ submission.caseId }}" required>
+
+          <label>Model</label>
+          <input type="text" name="model" value="{{ submission.model }}">
+
+          <label>Estimate Value (₹)</label>
+          <input type="number" name="estimate" value="{{ submission.estimate }}">
+
+          <label>Invoice Repair</label>
+          <select name="invoice">
+            <option value="Yes" {% if submission.invoice == "Yes" %}selected{% endif %}>Yes</option>
+            <option value="No" {% if submission.invoice == "No" %}selected{% endif %}>No</option>
+          </select>
+        </div>
+      </div>
+
+      <h2>Payment Details</h2>
+      <div class="form-grid">
+        <div class="form-col">
+          <label>Payment Details</label>
+          <input type="text" name="paymentDetails" value="{{ submission.paymentDetails }}" placeholder="Enter payment details">
+
+          <label>Payment Value (₹)</label>
+          <input type="number" name="paymentValue" value="{{ submission.paymentValue }}">
+
+          <label>UTR</label>
+          <input type="text" name="utr" value="{{ submission.utr }}">
+        </div>
+
+        <div class="form-col">
+          <label>Payment Date</label>
+          <input 
+            type="date" 
+            name="paymentDate" 
+            value="{{ submission.paymentDate | safe }}"
+            style="width: 100%; padding: 6px;"
+          >
+
+
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn blue">Save Changes</button>
+        <a href="/submissions" class="btn gray">Cancel</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
