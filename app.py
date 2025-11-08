@@ -3,24 +3,24 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import csv, io, mysql.connector
 import os
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "5fd125c53a4cc13ebb26791429af34e1"
+app.secret_key = os.getenv("SECRET_KEY")
 
-# Temporary in-memory data
 submissions = []
 
 # ---------------- DATABASE CONNECTION ----------------
-
-
 def get_db_connection():
     connection = mysql.connector.connect(
-        host="gondola.proxy.rlwy.net",
-        user="root",
-        password="NLZmNkspByzebNAQuBdNOASKCZSHYcmL",
-        database="railway",
-        port=42599
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+        port=int(os.getenv("DB_PORT"))
     )
     return connection
 
