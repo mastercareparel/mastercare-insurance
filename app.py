@@ -10,13 +10,18 @@ app.secret_key = "your_secret_key"
 submissions = []
 
 # ---------------- DATABASE CONNECTION ----------------
+
+
 def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",          # apna MySQL username
-        password="Manu@2046",          # apna MySQL password
-        database="mastercare" # apna database name
+    connection = mysql.connector.connect(
+        host="gondola.proxy.rlwy.net",
+        user="root",
+        password="NLZmNkspByzebNAQuBdNOASKCZSHYcmL",
+        database="railway",
+        port=42599
     )
+    return connection
+
 
 
 @app.route('/')
@@ -183,29 +188,48 @@ def export_csv():
     ])
 
     for s in submissions:
-        # 🧠 Fix: Convert payment date to proper yyyy-mm-dd format
+        # ✅ Fix 1: Full date with proper format
+        created_date = s.get("created", "")
+        if created_date:
+            try:
+                created_date = datetime.strptime(created_date, "%d/%m/%Y, %I:%M:%S %p").strftime("%d/%m/%Y %H:%M:%S")
+            except:
+                pass
+
+        # ✅ Fix 2: Prevent Excel from converting IMEI to scientific notation
+        imei = s.get("imei", "")
+        if imei and imei.isdigit():
+            imei = f"'{imei}"  # apostrophe forces Excel to treat it as text
+
         raw_date = s.get("paymentDate", "").strip()
         payment_date = ""
 
-        # Try to fix the format
         if raw_date:
-            parts = raw_date.replace("/", "-").split("-")
-            if len(parts) == 3:
-                d, m, y = parts
-                if len(y) == 2:  # e.g., 06-11-25
-                    y = "20" + y
-                # make sure it's in yyyy-mm-dd (Excel-friendly)
-                payment_date = f"{y.zfill(4)}-{m.zfill(2)}-{d.zfill(2)}"
-            else:
+            try:
+                from datetime import datetime
+                # try multiple possible formats
+                for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
+                    try:
+                        parsed_date = datetime.strptime(raw_date, fmt)
+                        # ✅ Excel-friendly dd-mm-yyyy format
+                        payment_date = "'" + parsed_date.strftime("%d-%m-%Y")  # leading apostrophe forces Excel to treat it as text
+
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    payment_date = raw_date  # if none worked, keep original
+            except Exception:
                 payment_date = raw_date
 
+
         writer.writerow([
-            s.get("created", ""),
+            created_date,
             s.get("insurance", ""),
             s.get("caseId", ""),
             s.get("customer", ""),
             s.get("model", ""),
-            s.get("imei", ""),
+            imei,
             s.get("estimate", ""),
             s.get("repair", ""),
             s.get("invoice", ""),
