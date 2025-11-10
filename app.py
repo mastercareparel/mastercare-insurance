@@ -5,24 +5,24 @@ import csv, io, mysql.connector
 import os
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 
-submissions = []
-
-# ---------------- DATABASE CONNECTION ----------------
 def get_db_connection():
-    connection = mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-        port=int(os.getenv("DB_PORT"))
-    )
-    return connection
+    try:
+        connection = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+            port=os.getenv("DB_PORT")
+        )
+        return connection
+    except mysql.connector.Error as err:
+        print(f"Database connection error: {err}")
+        return None
 
 
 
@@ -34,45 +34,56 @@ def index():
     return redirect('/form')  # agar login hai to form page par le jao
 
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = generate_password_hash(request.form['password'])
+    error = None
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        stored_password = password
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+
         try:
-            cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (username, password) VALUES (%s, %s)",
+                (username, stored_password),
+            )
             conn.commit()
-            return redirect('/login')
-        except mysql.connector.Error:
-            return "⚠️ Username already exists or database error."
-        finally:
             cursor.close()
             conn.close()
-    return render_template('register.html')
+            return redirect("/login")
 
+        except mysql.connector.Error as e:
+            error = "Username already exists or MySQL error."
 
-@app.route('/login', methods=['GET', 'POST'])
+    return render_template("register.html", error=error)
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password']
-
+    error = None
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True, buffered=True)
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, username, password FROM users WHERE username=%s", (username,)
+        )
         user = cursor.fetchone()
         cursor.close()
         conn.close()
 
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            return redirect('/form')
+        if user and user[2] == password:
+            session["user_id"] = user[0]
+            return redirect("/form")
         else:
-            return render_template('login.html', error="Invalid username or password.")
-    return render_template('login.html')
+            error = "Invalid username or password."
+
+
+    return render_template("login.html", error=error)
+
 
 
 @app.route('/logout')
@@ -88,17 +99,16 @@ def form_page():
         return redirect('/login')
     return render_template('form.html')
 
-
 @app.route("/add", methods=["POST"])
 def add():
     if 'user_id' not in session:
         return redirect('/login')
 
     form = request.form
+
     new_entry = {
-        "created": datetime.now().strftime("%d/%m/%Y, %I:%M:%S %p"),
         "insurance": form.get("insurance"),
-        "caseId": form.get("caseId"),
+        "case_id": form.get("case_id"),
         "customer": form.get("customer"),
         "model": form.get("model"),
         "imei": form.get("imei"),
@@ -110,145 +120,213 @@ def add():
         "paymentDate": form.get("paymentDate"),
         "utr": form.get("utr"),
     }
-    submissions.append(new_entry)
-    return redirect(url_for("submissions_page"))
 
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+        INSERT INTO submissions (
+            user_id, insurance, case_id, customer, model, imei,
+            estimate, repair, invoice, paymentDetails, paymentValue,
+            paymentDate, utr
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        session['user_id'],
+        form.get("insurance"),
+        form.get("case_id"),
+        form.get("customer"),
+        form.get("model"),
+        form.get("imei"),
+        form.get("estimate"),
+        form.get("repair"),
+        form.get("invoice"),
+        form.get("paymentDetails"),
+        form.get("paymentValue"),
+        form.get("paymentDate"),
+        form.get("utr")      # 🔥 13th value
+    ))
+
+
+        conn.commit()
+
+    except mysql.connector.Error as err:
+        return f"Database error: {err}"
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for("submissions_page"))
 
 @app.route("/submissions")
 def submissions_page():
     if 'user_id' not in session:
         return redirect('/login')
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
     query = request.args.get("q", "").lower().strip()
+
     if query:
-        filtered = [
-            s for s in submissions
-            if query in s.get("caseId", "").lower()
-            or query in s.get("imei", "").lower()
-            or query in s.get("customer", "").lower()
-            or query in s.get("insurance", "").lower()
-            or query in s.get("paymentValue", "").lower()
-            or query in s.get("utr", "").lower()
-        ]
+        cursor.execute("""
+            SELECT * FROM submissions
+            WHERE user_id = %s AND (
+                LOWER(case_id) LIKE %s OR
+                LOWER(imei) LIKE %s OR
+                LOWER(customer) LIKE %s OR
+                LOWER(insurance) LIKE %s OR
+                LOWER(paymentValue) LIKE %s OR
+                LOWER(utr) LIKE %s
+            )
+            ORDER BY id DESC
+        """, (
+            session['user_id'],
+            f"%{query}%",
+            f"%{query}%",
+            f"%{query}%",
+            f"%{query}%",
+            f"%{query}%",
+            f"%{query}%"
+        ))
     else:
-        filtered = submissions
-    return render_template("submissions.html", submissions=filtered, search_query=query)
+        cursor.execute("""
+            SELECT * FROM submissions
+            WHERE user_id = %s
+            ORDER BY id DESC
+        """, (session['user_id'],))
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template("submissions.html", submissions=rows, search_query=query)
+
+@app.route("/delete/<int:id>")
+def delete(id):
+    if "user_id" not in session:
+        return redirect("/login")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # ✅ delete only if submission belongs to logged in user
+    cursor.execute("DELETE FROM submissions WHERE id=%s AND user_id=%s", 
+                   (id, session["user_id"]))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect('/submissions')
 
 
-@app.route("/delete/<int:index>")
-def delete(index):
-    if 'user_id' not in session:
-        return redirect('/login')
-    if 0 <= index < len(submissions):
-        submissions.pop(index)
-    return redirect(url_for("submissions_page"))
+@app.route("/edit/<int:id>", methods=["GET", "POST"])
+def edit(id):
+    if "user_id" not in session:
+        return redirect("/login")
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
 
-@app.route("/edit/<int:index>", methods=["GET", "POST"])
-def edit(index):
-    if 'user_id' not in session:
-        return redirect('/login')
+    # ✅ FIRST check if record exists for that user
+    cursor.execute("SELECT * FROM submissions WHERE id=%s AND user_id=%s", 
+                   (id, session["user_id"]))
+    data = cursor.fetchone()
 
-    if 0 <= index < len(submissions):
-        if request.method == "POST":
-            form = request.form
-            submissions[index] = {
-                "created": submissions[index]["created"],
-                "insurance": form.get("insurance"),
-                "caseId": form.get("caseId"),
-                "customer": form.get("customer"),
-                "model": form.get("model"),
-                "imei": form.get("imei"),
-                "estimate": form.get("estimate"),
-                "repair": form.get("repair"),
-                "invoice": form.get("invoice"),
-                "paymentDetails": form.get("paymentDetails"),
-                "paymentValue": form.get("paymentValue"),
-                "paymentDate": form.get("paymentDate"),
-                "utr": form.get("utr"),
-            }
-            return redirect(url_for("submissions_page"))
-        data = submissions[index]
-        return render_template("edit.html", submission=data, index=index)
-    return "Invalid index", 404
+    if not data:
+        cursor.close()
+        conn.close()
+        return "Submission not found or not yours", 404
+
+    # ✅ UPDATE logic
+    if request.method == "POST":
+        form = request.form
+
+        cursor.execute("""
+            UPDATE submissions SET
+                insurance=%s,
+                case_id=%s,
+                customer=%s,
+                model=%s,
+                imei=%s,
+                estimate=%s,
+                repair=%s,
+                invoice=%s,
+                paymentDetails=%s,
+                paymentValue=%s,
+                paymentDate=%s,
+                utr=%s
+            WHERE id=%s AND user_id=%s
+        """, (
+            form.get("insurance"),
+            form.get("case_id"),   # ✅ correct key
+            form.get("customer"),
+            form.get("model"),
+            form.get("imei"),
+            form.get("estimate"),
+            form.get("repair"),
+            form.get("invoice"),
+            form.get("paymentDetails"),
+            form.get("paymentValue"),
+            form.get("paymentDate"),
+            form.get("utr"),
+            id,
+            session["user_id"]
+        ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return redirect('/submissions')
+
+    cursor.close()
+    conn.close()
+    return render_template("edit.html", submission=data)
+
 
 
 @app.route("/export_csv")
 def export_csv():
-    """Export all submissions to a CSV file."""
-    if not submissions:
-        return "No submissions available to export.", 400
+    if "user_id" not in session:
+        return redirect("/login")
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM submissions WHERE user_id=%s", (session['user_id'],))
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    if not rows:
+        return "No submissions to export.", 400
 
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # Header row
     writer.writerow([
-        "Created", "Insurance", "Case ID", "Customer", "Model", "IMEI",
+        "Insurance", "Case ID", "Customer", "Model", "IMEI",
         "Estimate", "Repair", "Invoice", "Payment Details",
         "Payment Value", "Payment Date", "UTR"
     ])
 
-    for s in submissions:
-        # ✅ Fix 1: Full date with proper format
-        created_date = s.get("created", "")
-        if created_date:
-            try:
-                created_date = datetime.strptime(created_date, "%d/%m/%Y, %I:%M:%S %p").strftime("%d/%m/%Y %H:%M:%S")
-            except:
-                pass
-
-        # ✅ Fix 2: Prevent Excel from converting IMEI to scientific notation
-        imei = s.get("imei", "")
-        if imei and imei.isdigit():
-            imei = f"'{imei}"  # apostrophe forces Excel to treat it as text
-
-        raw_date = s.get("paymentDate", "").strip()
-        payment_date = ""
-
-        if raw_date:
-            try:
-                from datetime import datetime
-                # try multiple possible formats
-                for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
-                    try:
-                        parsed_date = datetime.strptime(raw_date, fmt)
-                        # ✅ Excel-friendly dd-mm-yyyy format
-                        payment_date = "'" + parsed_date.strftime("%d-%m-%Y")  # leading apostrophe forces Excel to treat it as text
-
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    payment_date = raw_date  # if none worked, keep original
-            except Exception:
-                payment_date = raw_date
-
-
+    for s in rows:
         writer.writerow([
-            created_date,
-            s.get("insurance", ""),
-            s.get("caseId", ""),
-            s.get("customer", ""),
-            s.get("model", ""),
-            imei,
-            s.get("estimate", ""),
-            s.get("repair", ""),
-            s.get("invoice", ""),
-            s.get("paymentDetails", ""),
-            s.get("paymentValue", ""),
-            payment_date,
-            s.get("utr", "")
+            s["insurance"], s["case_id"], s["customer"],
+            s["model"],f"'{s['imei']}", s["estimate"], s["repair"],
+            s["invoice"], s["paymentDetails"], s["paymentValue"],
+            s["paymentDate"], s["utr"]
         ])
 
-    output.seek(0)
+    response = Response(output.getvalue(), mimetype="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=submissions.csv"
 
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=submissions.csv"}
-    )
+    return response
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Default 10000 for local, Render uses $PORT
+    port = int(os.environ.get("PORT", 5000))  # Default 10000 for local, Render uses $PORT
     app.run(host="0.0.0.0", port=port)

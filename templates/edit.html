@@ -7,7 +7,7 @@
 </head>
 <body>
   <div class="form-container">
-    <h1>Edit Submission #{{ index + 1 }}</h1>
+    <h1>Edit Submission #{{ submission.id }}</h1>
 
     <form method="POST">
       <h2>Claim Details</h2>
@@ -39,7 +39,7 @@
 
         <div class="form-col">
           <label>Case ID</label>
-          <input type="text" name="caseId" value="{{ submission.caseId }}" required>
+          <input type="text" name="case_id" value="{{ submission.case_id }}" required>
 
           <label>Model</label>
           <input type="text" name="model" value="{{ submission.model }}">
@@ -73,11 +73,9 @@
           <input 
             type="date" 
             name="paymentDate" 
-            value="{{ submission.paymentDate | safe }}"
+            value="{{ submission.paymentDate }}"
             style="width: 100%; padding: 6px;"
           >
-
-
         </div>
       </div>
 
